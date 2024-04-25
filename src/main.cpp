@@ -1,3 +1,4 @@
+
 static bool running = true;
 
 int main()

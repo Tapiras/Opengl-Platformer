@@ -1,3 +1,4 @@
 #!/bin/bash
 
-clang src/main.cpp -platformer.exe
+
+clang src/main.cpp -oplatformer.exe
