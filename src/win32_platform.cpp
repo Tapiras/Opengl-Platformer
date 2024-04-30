@@ -10,6 +10,7 @@
 //                                  Windows Globals
 // --------------------------------------------------------------------------------------------------
 static HWND window;
+static HDC dc;
 
 // --------------------------------------------------------------------------------------------------
 //                                  Windows Implemantation
@@ -25,6 +26,15 @@ LRESULT CALLBACK windows_window_callback(HWND hwnd, UINT uMsg, WPARAM wParam, LP
             running = false;
             break;
         }
+        case WM_SIZE:
+        {
+            RECT rect;
+            GetClientRect(hwnd, &rect);
+            input.screenSizeX = rect.right - rect.left;
+            input.screenSizeY = rect.bottom - rect.top;
+            break;
+        }
+
         default:
         {
             result = DefWindowProcA(hwnd, uMsg, wParam, lParam);
@@ -142,7 +152,7 @@ bool platform_create_window(int width, int height, const char* title)
             return false;
         }
 
-        HDC dc = GetDC(window);
+        dc = GetDC(window);
         if(!dc)
         {
             SM_ASSERT(false, "Failed to get device context");
@@ -203,7 +213,7 @@ bool platform_create_window(int width, int height, const char* title)
     }
 
     ShowWindow(window, SW_SHOW);
-    
+
     return true;   
 }
 
@@ -233,4 +243,9 @@ void* platform_load_gl_function(char* funName)
     }
     
     return (void*)proc;
+}
+
+void platform_sawp_buffers()
+{
+    SwapBuffers(dc);
 }
