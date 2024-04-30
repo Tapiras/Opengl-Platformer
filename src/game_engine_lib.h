@@ -1,9 +1,11 @@
-#pragma
+#pragma once
 
+#define _CRT_SECURE_NO_DEPRECATE
 #include <stdio.h>
-
 #include <stdlib.h>
+
 #include <string.h>
+#include <sys/stat.h>
 
 // --------------------------------------------------------------------------------------------------
 //                                      Defines
@@ -68,6 +70,7 @@ void _log(char* prefix, char* msg, TextColor textColor, Args... args)
         DEBUG_BREAK();                              \
     }                                               \
 }                                                   \
+
 // --------------------------------------------------------------------------------------------------
 //                                      Bump Allocator
 // --------------------------------------------------------------------------------------------------
@@ -93,4 +96,165 @@ BumpAllocator make_bump_allocator(size_t size)
     }    
 
     return allocator;
+}
+
+char* bump_alloc(BumpAllocator* bumpAllocator, size_t size)
+{
+    char* result = nullptr;
+
+    size_t allignedSize = (size + 7) & ~ 7; // first for bits are set to 0;
+    if (bumpAllocator->used + allignedSize <= bumpAllocator->capacity)
+    {
+        result = bumpAllocator->memory + bumpAllocator->used;
+        bumpAllocator->used += allignedSize;
+    }
+    else
+    {
+        SM_ASSERT(false, "BumpAllocator is full");
+    }
+    
+    return result;
+}
+
+// --------------------------------------------------------------------------------------------------
+//                                      File I/O
+// --------------------------------------------------------------------------------------------------
+
+long long get_timestanp(char* file)
+{
+    struct stat file_stat = {};
+    stat(file, &file_stat);
+    return file_stat.st_mtime;
+}
+
+bool file_exists(char* filePath)
+{
+    SM_ASSERT(filePath, "File path is null");
+
+    auto file = fopen(filePath, "rb");
+    if(!file)
+    {
+        return false;
+    }
+    fclose(file);
+
+    return true;
+}
+
+long get_file_size(char* filePath)
+{
+    if (!file_exists(filePath))
+    {
+        SM_ERROR("File %s does not exist", filePath);
+        return 0;
+    }
+    
+    long fileSize = 0;
+    auto file = fopen(filePath, "rb");
+    
+    fseek(file, 0, SEEK_END);
+    fileSize = ftell(file);
+    fseek(file, 0, SEEK_SET);
+    fclose(file);
+    
+    return fileSize;
+}
+
+char* read_file(char* filePath, int* fileSize, char* buffer)
+{
+    SM_ASSERT(buffer, "Buffer is null");
+
+    if (!file_exists(filePath))
+    {
+        SM_ERROR("File %s does not exist", filePath);
+        return nullptr;
+    }
+
+    *fileSize = 0;
+    auto file = fopen(filePath, "rb");
+
+    fseek(file, 0, SEEK_END);
+    *fileSize = ftell(file);
+    fseek(file, 0, SEEK_SET);
+
+    memset(buffer, 0, *fileSize + 1);
+    fread(buffer, sizeof(char), *fileSize, file);
+
+    fclose(file);
+
+    return buffer;
+}
+
+char* read_file(char* filePath, int* fileSize, BumpAllocator* bumpalocator)
+{
+    char* file = nullptr;
+    long fileSize2 = get_file_size(filePath);
+
+    if (fileSize2)
+    {
+        char* buffer = bump_alloc(bumpalocator, fileSize2 + 1);
+
+        file = read_file(filePath, fileSize, buffer);
+    }
+
+    return file;
+}
+
+void write_file(char* filePath, char* buffer, int size)
+{
+    SM_ASSERT(buffer, "Buffer is null");
+    if (!file_exists(filePath))
+    {
+        SM_ERROR("File %s does not exist", filePath);
+        return;
+    }
+
+    auto file = fopen(filePath, "wb");
+    if (!file)
+    {
+        SM_ERROR("Failed to open file %s", filePath);
+        return; 
+    }
+
+    fwrite(buffer, sizeof(char), size, file);  
+    fclose(file);
+}
+
+bool copy_file(char* FileName, char* outputName, char* buffer)
+{
+    int fileSize = 0;
+    char* data = read_file(FileName, &fileSize, buffer);
+
+    auto outputFile = fopen(outputName, "wb");
+    if(!outputFile)
+    {
+        SM_ERROR("Failed to open file %s", outputName);
+        return false;
+    }
+
+    int result = fwrite(data, sizeof(char), fileSize, outputFile);
+    if(!result)
+    {
+        SM_ERROR("Failed to open to file %s", outputName);
+        return false;
+    }
+
+    fclose(outputFile);
+
+    return true;
+}
+
+bool copy_file(char* FileName, char* outputName, BumpAllocator* bumpAllocator)
+{
+    char* file = 0;
+    long fileSize2 = get_file_size(FileName);
+
+    if (fileSize2)
+    {
+        char* buffer = bump_alloc(bumpAllocator, fileSize2 + 1);
+        
+        return copy_file(FileName, outputName, buffer);
+    }
+
+    return false;
 }
