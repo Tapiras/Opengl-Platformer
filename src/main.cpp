@@ -2,6 +2,8 @@
 
 #include "input.h"
 
+#include "game.cpp"
+
 #include "platform.h"
 
 #define APIENTRY
@@ -14,7 +16,6 @@
 
 #include "gl_renderer.cpp"
 
-
 int main()
 {
     BumpAllocator transientStorage = make_bump_allocator(MB(50));
@@ -26,9 +27,13 @@ int main()
     gl_init(&transientStorage);
 
     while (running)
-    {
+    {   
         // update game
+        
         platform_update_window();
+
+        update_game();
+
         gl_render();
 
         platform_sawp_buffers();
